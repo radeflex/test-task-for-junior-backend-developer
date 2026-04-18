@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Task Service API",
-    "version": "1.0.0",
-    "description": "CRUD API for tasks built with clean architecture."
+    "version": "1.2.0",
+    "description": "CRUD API for tasks with periodic scheduling support."
   },
   "servers": [
     {
@@ -28,7 +28,9 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/Task" }
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  }
                 }
               }
             }
@@ -42,7 +44,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateTaskRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
             }
           }
         },
@@ -51,11 +55,15 @@
             "description": "Created task",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Task" }
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
         }
       }
     },
@@ -68,7 +76,11 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
           }
         ],
         "responses": {
@@ -76,11 +88,15 @@
             "description": "Task",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Task" }
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
         }
       },
       "put": {
@@ -91,14 +107,20 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateTaskRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskRequest"
+              }
             }
           }
         },
@@ -107,12 +129,12 @@
             "description": "Updated task",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Task" }
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
               }
             }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          }
         }
       },
       "delete": {
@@ -123,12 +145,20 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
           }
         ],
         "responses": {
-          "204": { "description": "Deleted" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
         }
       }
     }
@@ -139,7 +169,9 @@
         "description": "Bad request",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -147,7 +179,9 @@
         "description": "Resource not found",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       }
@@ -157,18 +191,26 @@
         "type": "object",
         "required": ["title"],
         "properties": {
-          "title": {
-            "type": "string",
-            "example": "Prepare release"
-          },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
+          "title": { "type": "string", "example": "Prepare release" },
+          "description": { "type": "string", "example": "Collect release notes" },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "new"
+          },
+          "periodicity": {
+            "type": "string",
+            "enum": ["daily", "daily_even", "daily_odd", "monthly"],
+            "example": "daily"
+          },
+          "periodicity_value": {
+            "type": "integer",
+            "example": 2
+          },
+          "publish_date": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-18T10:00:00Z"
           }
         }
       },
@@ -176,51 +218,66 @@
         "type": "object",
         "required": ["title", "status"],
         "properties": {
-          "title": {
-            "type": "string",
-            "example": "Prepare release"
-          },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
           "status": {
             "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "in_progress"
+            "enum": ["new", "in_progress", "done"]
+          },
+          "periodicity": {
+            "type": "string",
+            "enum": ["daily", "daily_even", "daily_odd", "monthly"]
+          },
+          "periodicity_value": {
+            "type": "integer"
+          },
+          "publish_date": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
       "Task": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "format": "int64", "example": 1 },
-          "title": { "type": "string", "example": "Prepare release" },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
+          "id": { "type": "integer", "example": 1 },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
           "status": {
             "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "new"
+            "enum": ["new", "in_progress", "done"]
           },
           "created_at": {
             "type": "string",
-            "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
+            "format": "date-time"
           },
           "updated_at": {
             "type": "string",
-            "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
+            "format": "date-time"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "periodicity": {
+            "type": "string",
+            "enum": ["daily", "daily_even", "daily_odd", "monthly"]
+          },
+          "periodicity_value": {
+            "type": "integer"
+          },
+          "publish_date": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
       "Error": {
         "type": "object",
         "properties": {
-          "error": { "type": "string", "example": "task not found" }
+          "error": {
+            "type": "string",
+            "example": "task not found"
+          }
         }
       }
     }

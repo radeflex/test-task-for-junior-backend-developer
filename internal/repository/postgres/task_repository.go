@@ -20,29 +20,68 @@ func New(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) Create(ctx context.Context, task *taskdomain.Task) (*taskdomain.Task, error) {
 	const query = `
-		INSERT INTO tasks (title, description, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, title, description, status, created_at, updated_at
+		INSERT INTO tasks (
+			title,
+			description,
+			status,
+			created_at,
+			updated_at,
+			periodicity_type,
+			periodicity_value,
+			publish_date,
+			is_active
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING
+			id,
+			title,
+			description,
+			status,
+			created_at,
+			updated_at,
+			periodicity_type,
+			periodicity_value,
+			publish_date,
+			is_active
 	`
 
-	row := r.pool.QueryRow(ctx, query, task.Title, task.Description, task.Status, task.CreatedAt, task.UpdatedAt)
-	created, err := scanTask(row)
-	if err != nil {
-		return nil, err
-	}
+	row := r.pool.QueryRow(
+		ctx,
+		query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.CreatedAt,
+		task.UpdatedAt,
+		task.Periodicity,
+		task.PeriodicityValue,
+		task.PublishDate,
+		task.IsActive,
+	)
 
-	return created, nil
+	return scanTask(row)
 }
 
 func (r *Repository) GetByID(ctx context.Context, id int64) (*taskdomain.Task, error) {
 	const query = `
-		SELECT id, title, description, status, created_at, updated_at
+		SELECT
+			id,
+			title,
+			description,
+			status,
+			created_at,
+			updated_at,
+			periodicity_type,
+			periodicity_value,
+			publish_date,
+			is_active
 		FROM tasks
 		WHERE id = $1
 	`
 
 	row := r.pool.QueryRow(ctx, query, id)
-	found, err := scanTask(row)
+
+	task, err := scanTask(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, taskdomain.ErrNotFound
@@ -51,7 +90,7 @@ func (r *Repository) GetByID(ctx context.Context, id int64) (*taskdomain.Task, e
 		return nil, err
 	}
 
-	return found, nil
+	return task, nil
 }
 
 func (r *Repository) Update(ctx context.Context, task *taskdomain.Task) (*taskdomain.Task, error) {
@@ -60,12 +99,39 @@ func (r *Repository) Update(ctx context.Context, task *taskdomain.Task) (*taskdo
 		SET title = $1,
 			description = $2,
 			status = $3,
-			updated_at = $4
-		WHERE id = $5
-		RETURNING id, title, description, status, created_at, updated_at
+			updated_at = $4,
+			periodicity_type = $5,
+			periodicity_value = $6,
+			publish_date = $7,
+			is_active = $8
+		WHERE id = $9
+		RETURNING
+			id,
+			title,
+			description,
+			status,
+			created_at,
+			updated_at,
+			periodicity_type,
+			periodicity_value,
+			publish_date,
+			is_active
 	`
 
-	row := r.pool.QueryRow(ctx, query, task.Title, task.Description, task.Status, task.UpdatedAt, task.ID)
+	row := r.pool.QueryRow(
+		ctx,
+		query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.UpdatedAt,
+		task.Periodicity,
+		task.PeriodicityValue,
+		task.PublishDate,
+		task.IsActive,
+		task.ID,
+	)
+
 	updated, err := scanTask(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -95,7 +161,17 @@ func (r *Repository) Delete(ctx context.Context, id int64) error {
 
 func (r *Repository) List(ctx context.Context) ([]taskdomain.Task, error) {
 	const query = `
-		SELECT id, title, description, status, created_at, updated_at
+		SELECT
+			id,
+			title,
+			description,
+			status,
+			created_at,
+			updated_at,
+			periodicity_type,
+			periodicity_value,
+			publish_date,
+			is_active
 		FROM tasks
 		ORDER BY id DESC
 	`
@@ -129,22 +205,28 @@ type taskScanner interface {
 
 func scanTask(scanner taskScanner) (*taskdomain.Task, error) {
 	var (
-		task   taskdomain.Task
-		status string
+		task        taskdomain.Task
+		status      string
+		periodicity string
 	)
 
-	if err := scanner.Scan(
+	err := scanner.Scan(
 		&task.ID,
 		&task.Title,
 		&task.Description,
 		&status,
 		&task.CreatedAt,
 		&task.UpdatedAt,
-	); err != nil {
+		&periodicity,
+		&task.PeriodicityValue,
+		&task.PublishDate,
+		&task.IsActive,
+	)
+	if err != nil {
 		return nil, err
 	}
 
 	task.Status = taskdomain.Status(status)
-
+	task.Periodicity = taskdomain.Periodicity(periodicity)
 	return &task, nil
 }

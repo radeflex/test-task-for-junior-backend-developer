@@ -16,6 +16,7 @@ import (
 	swaggerdocs "example.com/taskservice/internal/transport/http/docs"
 	httphandlers "example.com/taskservice/internal/transport/http/handlers"
 	"example.com/taskservice/internal/usecase/task"
+	gocron "github.com/go-co-op/gocron/v2"
 )
 
 func main() {
@@ -47,8 +48,19 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	taskUsecase.UpdateActivity(ctx)
+
+	sch, err := startCronScheduler(taskUsecase, ctx, logger)
+	if err != nil {
+		logger.Error("cron sheduler", "error", err)
+	}
+
 	go func() {
 		<-ctx.Done()
+
+		if err := sch.Shutdown(); err != nil {
+			logger.Error("shutdown cron scheduler", "error", err)
+		}
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -90,4 +102,29 @@ func envOrDefault(key, fallback string) string {
 	}
 
 	return fallback
+}
+
+func startCronScheduler(taskUsecase *task.Service, ctx context.Context, logger *slog.Logger) (gocron.Scheduler, error) {
+	s, err := gocron.NewScheduler()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.NewJob(gocron.DailyJob(
+		1,
+		gocron.NewAtTimes(
+			gocron.NewAtTime(21, 00, 00),
+		),
+	), gocron.NewTask(
+		func() {
+			err := taskUsecase.UpdateActivity(ctx)
+			if err != nil {
+				logger.Error("update task activity", "error", err)
+			}
+			logger.Info("tasks updated")
+		},
+	))
+
+	s.Start()
+	return s, err
 }

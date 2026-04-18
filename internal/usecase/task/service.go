@@ -28,13 +28,17 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*taskdomain.Ta
 	}
 
 	model := &taskdomain.Task{
-		Title:       normalized.Title,
-		Description: normalized.Description,
-		Status:      normalized.Status,
+		Title:            normalized.Title,
+		Description:      normalized.Description,
+		Status:           normalized.Status,
+		Periodicity:      normalized.Periodicity,
+		PeriodicityValue: normalized.PediodicityValue,
+		PublishDate:      normalized.PublishDate,
 	}
 	now := s.now()
 	model.CreatedAt = now
 	model.UpdatedAt = now
+	model.IsActive = calcActivity(model)
 
 	created, err := s.repo.Create(ctx, model)
 	if err != nil {
@@ -63,12 +67,17 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (*tas
 	}
 
 	model := &taskdomain.Task{
-		ID:          id,
-		Title:       normalized.Title,
-		Description: normalized.Description,
-		Status:      normalized.Status,
-		UpdatedAt:   s.now(),
+		ID:               id,
+		Title:            normalized.Title,
+		Description:      normalized.Description,
+		Status:           normalized.Status,
+		Periodicity:      normalized.Periodicity,
+		PeriodicityValue: normalized.PediodicityValue,
+		PublishDate:      normalized.PublishDate,
+		UpdatedAt:        s.now(),
 	}
+
+	model.IsActive = calcActivity(model)
 
 	updated, err := s.repo.Update(ctx, model)
 	if err != nil {
@@ -106,6 +115,23 @@ func validateCreateInput(input CreateInput) (CreateInput, error) {
 		return CreateInput{}, fmt.Errorf("%w: invalid status", ErrInvalidInput)
 	}
 
+	if input.Periodicity != "" {
+		if !input.Periodicity.Valid() {
+			return CreateInput{}, fmt.Errorf("%w: invalid periodicity", ErrInvalidInput)
+		}
+
+		switch input.Periodicity {
+		case taskdomain.PeriodicityDaily:
+			if input.PediodicityValue > 7 || input.PediodicityValue < 1 {
+				return CreateInput{}, fmt.Errorf("%w: daily periodicity must be between 1 and 7", ErrInvalidInput)
+			}
+		case taskdomain.PediodicityMonthly:
+			if input.PediodicityValue > 30 || input.PediodicityValue < 1 {
+				return CreateInput{}, fmt.Errorf("%w: monthly periodicity must be between 1 and 30", ErrInvalidInput)
+			}
+		}
+	}
+
 	return input, nil
 }
 
@@ -121,5 +147,63 @@ func validateUpdateInput(input UpdateInput) (UpdateInput, error) {
 		return UpdateInput{}, fmt.Errorf("%w: invalid status", ErrInvalidInput)
 	}
 
+	if input.Periodicity != "" {
+		if !input.Periodicity.Valid() {
+			return UpdateInput{}, fmt.Errorf("%w: invalid periodicity", ErrInvalidInput)
+		}
+
+		switch input.Periodicity {
+		case taskdomain.PeriodicityDaily:
+			if input.PediodicityValue > 7 || input.PediodicityValue < 1 {
+				return UpdateInput{}, fmt.Errorf("%w: daily periodicity must be between 1 and 7", ErrInvalidInput)
+			}
+		case taskdomain.PediodicityMonthly:
+			if input.PediodicityValue > 30 || input.PediodicityValue < 1 {
+				return UpdateInput{}, fmt.Errorf("%w: monthly periodicity must be between 1 and 30", ErrInvalidInput)
+			}
+		}
+	}
+
 	return input, nil
+}
+
+func (s *Service) UpdateActivity(ctx context.Context) error {
+	tasks, err := s.repo.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, t := range tasks {
+		active := calcActivity(&t)
+		if active != t.IsActive {
+			if t.Status == taskdomain.StatusDone {
+				t.Status = taskdomain.StatusNew
+			}
+			t.IsActive = active
+			t.UpdatedAt = s.now()
+			_, err := s.repo.Update(ctx, &t)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func calcActivity(task *taskdomain.Task) bool {
+	if task.PublishDate.Before(time.Now()) {
+		if task.Periodicity == "" {
+			return true
+		}
+		switch task.Periodicity {
+		case taskdomain.PeriodicityDailyEven:
+			return time.Now().Day()%2 == 0
+		case taskdomain.PeriodicityDailyOdd:
+			return time.Now().Day()%2 == 1
+		case taskdomain.PeriodicityDaily:
+			return int(time.Now().Weekday()) == task.PeriodicityValue
+		case taskdomain.PediodicityMonthly:
+			return time.Now().Day() == task.PeriodicityValue
+		}
+	}
+	return false
 }
