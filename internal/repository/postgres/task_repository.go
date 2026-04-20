@@ -207,7 +207,7 @@ func scanTask(scanner taskScanner) (*taskdomain.Task, error) {
 	var (
 		task        taskdomain.Task
 		status      string
-		periodicity string
+		periodicity *string
 	)
 
 	err := scanner.Scan(
@@ -227,6 +227,9 @@ func scanTask(scanner taskScanner) (*taskdomain.Task, error) {
 	}
 
 	task.Status = taskdomain.Status(status)
-	task.Periodicity = taskdomain.Periodicity(periodicity)
+	if periodicity != nil {
+		p := taskdomain.Periodicity(*periodicity)
+		task.Periodicity = &p
+	}
 	return &task, nil
 }

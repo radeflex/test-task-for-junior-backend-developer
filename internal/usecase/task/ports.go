@@ -27,16 +27,16 @@ type CreateInput struct {
 	Title            string
 	Description      string
 	Status           taskdomain.Status
-	Periodicity      taskdomain.Periodicity
-	PediodicityValue int
-	PublishDate      time.Time
+	Periodicity      *taskdomain.Periodicity
+	PediodicityValue *int
+	PublishDate      *time.Time
 }
 
 type UpdateInput struct {
 	Title            string
 	Description      string
 	Status           taskdomain.Status
-	Periodicity      taskdomain.Periodicity
-	PediodicityValue int
-	PublishDate      time.Time
+	Periodicity      *taskdomain.Periodicity
+	PediodicityValue *int
+	PublishDate      *time.Time
 }

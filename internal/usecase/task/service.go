@@ -115,21 +115,8 @@ func validateCreateInput(input CreateInput) (CreateInput, error) {
 		return CreateInput{}, fmt.Errorf("%w: invalid status", ErrInvalidInput)
 	}
 
-	if input.Periodicity != "" {
-		if !input.Periodicity.Valid() {
-			return CreateInput{}, fmt.Errorf("%w: invalid periodicity", ErrInvalidInput)
-		}
-
-		switch input.Periodicity {
-		case taskdomain.PeriodicityDaily:
-			if input.PediodicityValue > 7 || input.PediodicityValue < 1 {
-				return CreateInput{}, fmt.Errorf("%w: daily periodicity must be between 1 and 7", ErrInvalidInput)
-			}
-		case taskdomain.PediodicityMonthly:
-			if input.PediodicityValue > 30 || input.PediodicityValue < 1 {
-				return CreateInput{}, fmt.Errorf("%w: monthly periodicity must be between 1 and 30", ErrInvalidInput)
-			}
-		}
+	if err := validatePeriodicity(input.Periodicity, input.PediodicityValue); err != nil {
+		return CreateInput{}, err
 	}
 
 	return input, nil
@@ -146,25 +133,46 @@ func validateUpdateInput(input UpdateInput) (UpdateInput, error) {
 	if !input.Status.Valid() {
 		return UpdateInput{}, fmt.Errorf("%w: invalid status", ErrInvalidInput)
 	}
+	if err := validatePeriodicity(input.Periodicity, input.PediodicityValue); err != nil {
+		return UpdateInput{}, err
+	}
+	return input, nil
+}
 
-	if input.Periodicity != "" {
-		if !input.Periodicity.Valid() {
-			return UpdateInput{}, fmt.Errorf("%w: invalid periodicity", ErrInvalidInput)
+func validatePeriodicity(periodicity *taskdomain.Periodicity, value *int) error {
+	if periodicity == nil {
+		return nil
+	}
+
+	if !periodicity.Valid() {
+		return fmt.Errorf("%w: invalid periodicity", ErrInvalidInput)
+	}
+
+	if (*periodicity == taskdomain.PeriodicityDaily ||
+		*periodicity == taskdomain.PeriodicityMonthly) &&
+		value == nil {
+		return fmt.Errorf("%w: periodicity value is required", ErrInvalidInput)
+	}
+
+	if value == nil {
+		return nil
+	}
+
+	v := *value
+
+	switch *periodicity {
+	case taskdomain.PeriodicityDaily:
+		if v < 1 || v > 7 {
+			return fmt.Errorf("%w: daily periodicity must be between 1 and 7", ErrInvalidInput)
 		}
 
-		switch input.Periodicity {
-		case taskdomain.PeriodicityDaily:
-			if input.PediodicityValue > 7 || input.PediodicityValue < 1 {
-				return UpdateInput{}, fmt.Errorf("%w: daily periodicity must be between 1 and 7", ErrInvalidInput)
-			}
-		case taskdomain.PediodicityMonthly:
-			if input.PediodicityValue > 30 || input.PediodicityValue < 1 {
-				return UpdateInput{}, fmt.Errorf("%w: monthly periodicity must be between 1 and 30", ErrInvalidInput)
-			}
+	case taskdomain.PeriodicityMonthly:
+		if v < 1 || v > 30 {
+			return fmt.Errorf("%w: monthly periodicity must be between 1 and 30", ErrInvalidInput)
 		}
 	}
 
-	return input, nil
+	return nil
 }
 
 func (s *Service) UpdateActivity(ctx context.Context) error {
@@ -190,19 +198,19 @@ func (s *Service) UpdateActivity(ctx context.Context) error {
 }
 
 func calcActivity(task *taskdomain.Task) bool {
-	if task.PublishDate.Before(time.Now()) {
-		if task.Periodicity == "" {
+	if task.PublishDate == nil || task.PublishDate.Before(time.Now()) {
+		if task.Periodicity == nil {
 			return true
 		}
-		switch task.Periodicity {
+		switch *task.Periodicity {
 		case taskdomain.PeriodicityDailyEven:
 			return time.Now().Day()%2 == 0
 		case taskdomain.PeriodicityDailyOdd:
 			return time.Now().Day()%2 == 1
 		case taskdomain.PeriodicityDaily:
-			return int(time.Now().Weekday()) == task.PeriodicityValue
-		case taskdomain.PediodicityMonthly:
-			return time.Now().Day() == task.PeriodicityValue
+			return int(time.Now().Weekday()) == *task.PeriodicityValue
+		case taskdomain.PeriodicityMonthly:
+			return time.Now().Day() == *task.PeriodicityValue
 		}
 	}
 	return false

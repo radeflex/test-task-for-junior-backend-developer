@@ -1,4 +1,4 @@
 ALTER TABLE tasks ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE tasks ADD COLUMN periodicity_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE tasks ADD COLUMN periodicity_type TEXT;
 ALTER TABLE tasks ADD COLUMN periodicity_value INT;
 ALTER TABLE tasks ADD COLUMN publish_date TIMESTAMPTZ;

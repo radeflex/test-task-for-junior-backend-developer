@@ -16,20 +16,20 @@ const (
 	PeriodicityDaily     Periodicity = "daily"
 	PeriodicityDailyEven Periodicity = "daily_even"
 	PeriodicityDailyOdd  Periodicity = "daily_odd"
-	PediodicityMonthly   Periodicity = "monthly"
+	PeriodicityMonthly   Periodicity = "monthly"
 )
 
 type Task struct {
-	ID               int64       `json:"id"`
-	Title            string      `json:"title"`
-	Description      string      `json:"description"`
-	Status           Status      `json:"status"`
-	CreatedAt        time.Time   `json:"created_at"`
-	UpdatedAt        time.Time   `json:"updated_at"`
-	Periodicity      Periodicity `json:"periodicity"`
-	PeriodicityValue int         `json:"periodicity_value"`
-	PublishDate      time.Time   `json:"publish_date"`
-	IsActive         bool        `json:"is_active"`
+	ID               int64        `json:"id"`
+	Title            string       `json:"title"`
+	Description      string       `json:"description"`
+	Status           Status       `json:"status"`
+	CreatedAt        time.Time    `json:"created_at"`
+	UpdatedAt        time.Time    `json:"updated_at"`
+	Periodicity      *Periodicity `json:"periodicity"`
+	PeriodicityValue *int         `json:"periodicity_value"`
+	PublishDate      *time.Time   `json:"publish_date"`
+	IsActive         bool         `json:"is_active"`
 }
 
 func (s Status) Valid() bool {
@@ -43,7 +43,7 @@ func (s Status) Valid() bool {
 
 func (p Periodicity) Valid() bool {
 	switch p {
-	case PeriodicityDaily, PeriodicityDailyEven, PeriodicityDailyOdd, PediodicityMonthly:
+	case PeriodicityDaily, PeriodicityDailyEven, PeriodicityDailyOdd, PeriodicityMonthly:
 		return true
 	default:
 		return false
